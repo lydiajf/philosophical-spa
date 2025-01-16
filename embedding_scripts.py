@@ -10,21 +10,13 @@ class PhilosophicalEmbedder:
     def __init__(
         self, 
         model_name: str = "allenai/longformer-base-4096",
-        layers_to_combine: List[int] = [-4, -3, -2, -1],  # Last 4 layers by default
         pooling_strategy: str = "mean"
     ):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = AutoModel.from_pretrained(model_name, output_hidden_states=True)
+        self.model = AutoModel.from_pretrained(model_name)  # No need for output_hidden_states
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model.to(self.device)
-        self.layers_to_combine = layers_to_combine
         self.pooling_strategy = pooling_strategy
-        
-    def _combine_layers(self, hidden_states: tuple) -> torch.Tensor:
-        """Combine multiple layers of embeddings."""
-        selected_layers = [hidden_states[i] for i in self.layers_to_combine]
-        combined = torch.stack(selected_layers)
-        return torch.mean(combined, dim=0)
     
     def _pool_tokens(self, token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """Pool token embeddings into a single vector."""
@@ -58,13 +50,12 @@ class PhilosophicalEmbedder:
         with torch.no_grad():
             outputs = self.model(
                 input_ids=input_ids,
-                attention_mask=attention_mask,
-                return_dict=True,
-                output_hidden_states=True
+                attention_mask=attention_mask
             )
             
-            combined_layers = self._combine_layers(outputs.hidden_states)
-            pooled_embeddings = self._pool_tokens(combined_layers, attention_mask)
+            # Use last hidden state directly
+            last_hidden_state = outputs.last_hidden_state
+            pooled_embeddings = self._pool_tokens(last_hidden_state, attention_mask)
             
         return pooled_embeddings.cpu().numpy()
 
