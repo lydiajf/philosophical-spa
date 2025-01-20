@@ -34,12 +34,29 @@ class PhilosophicalSpaceAnalyzer:
     def compute_mean_similarity(self, embeddings1: np.ndarray, embeddings2: np.ndarray) -> float:
         """Compute mean cosine similarity between two sets of embeddings."""
         similarities = cosine_similarity(embeddings1, embeddings2)
+        # Scale similarities to [0, 1] range
+        similarities = (similarities + 1) / 2
+        
         # Get mean similarity excluding self-similarities if comparing same set
         if embeddings1 is embeddings2:
-            # Mask the diagonal (self-similarities)
             np.fill_diagonal(similarities, np.nan)
             return np.nanmean(similarities)
         return np.mean(similarities)
+    
+    def plot_framework_clusters(self):
+        """Plot frameworks in 2D space."""
+        plt.figure(figsize=(12, 8))
+        frameworks = self.df['framework'].unique()
+        
+        for framework in frameworks:
+            mask = self.df['framework'] == framework
+            plt.scatter(self.embeddings[mask, 0], self.embeddings[mask, 1], 
+                       label=framework, alpha=0.6)
+        
+        plt.title('Framework Clusters')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.show()
     
     def analyze_framework_similarities(self):
         """Analyze similarities between different frameworks."""
@@ -60,7 +77,7 @@ class PhilosophicalSpaceAnalyzer:
                    yticklabels=frameworks,
                    annot=True, 
                    fmt='.2f',
-                   cmap='viridis')
+                   cmap='RdYlBu')
         plt.title('Framework Similarities')
         plt.tight_layout()
         plt.show()
@@ -86,7 +103,7 @@ class PhilosophicalSpaceAnalyzer:
                    yticklabels=framework_authors,
                    annot=True, 
                    fmt='.2f',
-                   cmap='viridis')
+                   cmap='RdYlBu')
         plt.title(f'Author Similarities within {framework}')
         plt.tight_layout()
         plt.show()
@@ -97,6 +114,7 @@ class PhilosophicalSpaceAnalyzer:
         """Find n most similar excerpts to a given excerpt."""
         query_embedding = self.embeddings[query_idx].reshape(1, -1)
         similarities = cosine_similarity(query_embedding, self.embeddings)[0]
+        similarities = (similarities + 1) / 2  # Scale to [0, 1]
         
         # Get top n most similar indices (excluding self)
         similar_indices = np.argsort(similarities)[::-1][1:n+1]
@@ -118,8 +136,12 @@ def main():
         metadata_path="embedded_space/metadata.json"
     )
     
+    # Plot framework clusters
+    print("\nPlotting framework clusters...")
+    analyzer.plot_framework_clusters()
+    
     # Analyze framework similarities
-    print("Analyzing framework similarities...")
+    print("\nAnalyzing framework similarities...")
     similarity_matrix, frameworks = analyzer.analyze_framework_similarities()
     
     # Analyze authors within Utilitarianism
